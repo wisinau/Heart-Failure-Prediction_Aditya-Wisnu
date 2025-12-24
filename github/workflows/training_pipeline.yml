@@ -3,20 +3,31 @@ name: ML Training Pipeline
 on:
   push:
     paths:
-      - 'Membangun_model/**' # Jalan kalau ada update di folder model
-  workflow_dispatch: # Tombol manual
+      - 'Membangun_model/**'
+  workflow_dispatch:
 
 jobs:
   train:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      
       - uses: actions/setup-python@v4
         with:
           python-version: '3.12'
+
       - name: Install Libs
         run: pip install mlflow==2.19.0 dagshub pandas scikit-learn matplotlib seaborn
-      - name: Run Training
+
+      # --- BAGIAN YANG DIPERBAIKI (KRITERIA 3) ---
+      - name: Train Model using MLflow Project
         env:
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-        run: python Membangun_model/modelling_tuning.py
+          # PERBAIKAN 1: Hapus bagian '/#/experiments/0' di belakang URL
+          MLFLOW_TRACKING_URI: "https://dagshub.com/wisinau/Heart_Failure_Prediction_AdityaWisnuYudhaMarsudi.mlflow"
+          
+          # PERBAIKAN 2: Gunakan Secrets agar token tidak dicuri orang
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        
+        run: |
+          mlflow run . --no-conda --experiment-name "CI_Retraining"
