@@ -1,0 +1,13 @@
+name: ml-heart
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - pandas
+    - scikit-learn
+    - mlflow==2.19.0
+    - dagshub
+    - matplotlib
+    - seaborn
