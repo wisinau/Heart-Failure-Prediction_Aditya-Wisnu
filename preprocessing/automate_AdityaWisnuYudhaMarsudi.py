@@ -1,89 +1,80 @@
 import pandas as pd
 import os
+import sys
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
 
-def load_data(path):
-    # Cek apakah file ada sebelum membaca
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"File tidak ditemukan di: {path}")
-    return pd.read_csv(path)
+# --- FUNGSI UTAMA ---
+def process_heart_data():
+    # 1. Tentukan Lokasi File secara Absolut (Anti-Gagal)
+    # Lokasi script ini berada (folder 'preprocessing')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Lokasi root repository (naik satu level dari script_dir)
+    repo_root = os.path.dirname(script_dir)
+    
+    # Path Input (Raw Data)
+    input_path = os.path.join(repo_root, 'heart_failure_raw', 'heart.csv')
+    
+    # Path Output (Clean Data)
+    output_folder = os.path.join(script_dir, 'heart_failure_preprocessing')
+    output_path = os.path.join(output_folder, 'heart_clean.csv')
 
-def preprocess_data(df):
-    # Hapus duplikat
-    df = df.drop_duplicates()
+    print(f"[INFO] Mencari data di: {input_path}")
 
-    # Pisahkan Fitur dan Target
-    target = 'HeartDisease'
-    X = df.drop(target, axis=1)
-    y = df[target]
+    # 2. Cek Keberadaan File
+    if not os.path.exists(input_path):
+        # Fallback: Coba cek jika script dijalankan langsung dari root (kasus Colab tertentu)
+        input_path_alt = "heart_failure_raw/heart.csv"
+        if os.path.exists(input_path_alt):
+             input_path = input_path_alt
+        else:
+            print(f"[ERROR] File tidak ditemukan di: {input_path}")
+            print("Pastikan folder 'heart_failure_raw' dan file 'heart.csv' ada di repo!")
+            sys.exit(1) # Hentikan program dengan kode error
 
-    # Definisi kolom
-    numerical_cols = ['Age', 'RestingBP', 'Cholesterol', 'MaxHR', 'Oldpeak']
-    categorical_cols = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope']
+    # 3. Load & Preprocessing
+    try:
+        df = pd.read_csv(input_path)
+        print(f"[INFO] Data dimuat. Dimensi awal: {df.shape}")
 
-    # Buat Pipeline Preprocessing
-    numerical_transformer = StandardScaler()
-    categorical_transformer = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+        # Hapus Duplikat
+        df = df.drop_duplicates()
 
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('num', numerical_transformer, numerical_cols),
-            ('cat', categorical_transformer, categorical_cols)
-        ]
-    )
+        # Pisahkan Target
+        target = 'HeartDisease'
+        X = df.drop(target, axis=1)
+        y = df[target]
 
-    # Fit & Transform
-    X_processed = preprocessor.fit_transform(X)
+        # Pipeline Preprocessing
+        numerical_cols = ['Age', 'RestingBP', 'Cholesterol', 'MaxHR', 'Oldpeak']
+        categorical_cols = ['Sex', 'ChestPainType', 'RestingECG', 'ExerciseAngina', 'ST_Slope']
 
-    # Ambil nama kolom baru
-    new_cat_cols = preprocessor.named_transformers_['cat'].get_feature_names_out(categorical_cols)
-    all_cols = numerical_cols + list(new_cat_cols)
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', StandardScaler(), numerical_cols),
+                ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_cols)
+            ]
+        )
 
-    # Gabungkan kembali
-    X_df = pd.DataFrame(X_processed, columns=all_cols)
-    final_df = pd.concat([X_df, y.reset_index(drop=True)], axis=1)
+        X_processed = preprocessor.fit_transform(X)
+        
+        # Ambil nama kolom baru
+        new_cat_cols = preprocessor.named_transformers_['cat'].get_feature_names_out(categorical_cols)
+        all_cols = numerical_cols + list(new_cat_cols)
+        
+        # Gabungkan hasil
+        X_df = pd.DataFrame(X_processed, columns=all_cols)
+        final_df = pd.concat([X_df, y.reset_index(drop=True)], axis=1)
+        
+        # 4. Simpan Hasil
+        os.makedirs(output_folder, exist_ok=True)
+        final_df.to_csv(output_path, index=False)
+        print(f"[SUKSES] Data bersih disimpan di: {output_path}")
 
-    return final_df
+    except Exception as e:
+        print(f"[ERROR] Terjadi kesalahan saat processing: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    # --- LOGIKA PENENTUAN PATH OTOMATIS ---
-    # Kita cek beberapa kemungkinan lokasi file agar script tidak error
-    possible_paths = [
-        "heart_failure_raw/heart.csv",       # Lokasi default di Colab root
-        "../heart_failure_raw/heart.csv",    # Lokasi sesuai struktur folder Submission (jika dijalankan dari folder preprocessing)
-        "/content/heart_failure_raw/heart.csv" # Lokasi absolut Colab
-    ]
-
-    input_path = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            input_path = path
-            break
-
-    # Jika file tetap tidak ketemu
-    if input_path is None:
-        print("ERROR: File 'heart.csv' tidak ditemukan di lokasi manapun.")
-        print("Pastikan folder 'heart_failure_raw' sudah ada dan berisi file heart.csv.")
-        exit()
-
-    # Tentukan output path
-    # Jika script dijalankan dari root, simpan ke folder preprocessing/heart_failure_preprocessing
-    if "preprocessing" not in os.getcwd():
-         output_path = "preprocessing/heart_failure_preprocessing/heart_clean.csv"
-    else:
-         output_path = "heart_failure_preprocessing/heart_clean.csv"
-
-    # Buat folder output jika belum ada
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    print(f"Loading Data dari: {input_path}")
-    df = load_data(input_path)
-
-    print("Preprocessing Data...")
-    df_clean = preprocess_data(df)
-
-    print(f"Saving Data ke: {output_path} ...")
-    df_clean.to_csv(output_path, index=False)
-    print("Berhasil! Data Preprocessing Selesai.")
+    process_heart_data()
