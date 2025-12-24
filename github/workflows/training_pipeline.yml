@@ -1,0 +1,22 @@
+name: ML Training Pipeline
+
+on:
+  push:
+    paths:
+      - 'Membangun_model/**' # Jalan kalau ada update di folder model
+  workflow_dispatch: # Tombol manual
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install Libs
+        run: pip install mlflow==2.19.0 dagshub pandas scikit-learn matplotlib seaborn
+      - name: Run Training
+        env:
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: python Membangun_model/modelling_tuning.py
