@@ -30,7 +30,7 @@ jobs:
 
       - name: Run Script
         run: |
-          python preprocessing/automate_Rafy.py
+          python preprocessing/automate_AdityaWisnuYudhaMarsudi.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
