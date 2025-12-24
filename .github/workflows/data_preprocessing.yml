@@ -10,25 +10,31 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
 
-      - name: Install Dependencies
+      - name: Install Libraries
         run: |
-          python -m pip install --upgrade pip
           pip install pandas scikit-learn
 
-      - name: Run Preprocessing Script
+      - name: Debugging - Cek Struktur Folder
         run: |
-          cd preprocessing
-          python automate_Rafy.py
+          echo "Isi folder root:"
+          ls -R
+        # Langkah ini akan menampilkan semua file di log, berguna untuk cek apakah heart.csv terbaca
+
+      - name: Run Script
+        run: |
+          python preprocessing/automate_Rafy.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: preprocessed-data
+          # Path ini sesuai dengan output dari script Python yang baru
           path: preprocessing/heart_failure_preprocessing/heart_clean.csv
